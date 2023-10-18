@@ -1,0 +1,8 @@
+{%extends 'manager/layout.html'%}
+{%block body%}
+    <form action="{%url 'add_material'%}" method="post" id="add-material-form">
+        {%csrf_token%}
+        {{form.as_p}}
+        <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
+{%endblock%}

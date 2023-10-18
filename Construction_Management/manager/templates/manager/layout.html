@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Construction Management</title>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    </head>
+    <body>
+        <header>
+            <div class="container">
+                <h1>Construction Records Management</h1>
+                <p id="date-and-day"></p>
+            </div>
+        </header>
+
+        <!-- The rest of your page content goes here -->
+
+        <script>
+            // JavaScript code to display the current date and day
+            const dateAndDayElement = document.getElementById("date-and-day");
+            const currentDate = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const formattedDate = currentDate.toLocaleDateString('en-US', options);
+            dateAndDayElement.textContent = formattedDate;
+        </script>
+
+
+        <div class="container-fluid">
+            <div class="row">
+                <!-- Sidebar -->
+                <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar">
+                    <div class="position-sticky">
+                        <ul class="nav flex-column">
+                            <li class="nav-item">
+                                <a class="nav-link active" href="{%url 'index'%}">
+                                    Dashboard
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#">
+                                    Projects
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{%url 'materials_available'%}">
+                                    Materials
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#">
+                                    Reports
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#">
+                                    Profile
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </nav>
+                <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">              
+                    {%block body%}
+                    {%endblock%}
+                </main>
+            </div>
+        </div>
+
+    </body>
+</html>
+
