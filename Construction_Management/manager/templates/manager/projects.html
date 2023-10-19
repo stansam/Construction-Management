@@ -1,0 +1,50 @@
+{%extends 'manager/layout.html'%}
+
+{%block body%}
+    <section class="project-list">
+        {%for project in projects%}
+        <div class="project">
+            <h2>Project {{project.id}}</h2>
+            <p>Title: {{project.title}}</p>
+            <p>Location: {{project.location}}</p>
+            <p>Status: {{project.status}}</p>
+            <a href="{%url 'project_detail' project.id%}">Learn More</a>
+        </div>
+        {%empty%}
+            <p>No Projects Available.</p>
+        {%endfor%}
+
+        <a href="{% url 'add_project' %}" class="add-button">Add Projects</a>
+
+    </section>
+
+    <a href="{% url 'add_project' %}" class="add-button">Add Projects</a>
+    <style>
+        /* Add Projects button style */
+        .add-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            width: 100px;
+            height: 50px;
+            text-align: center;
+            font-size: 15px;
+            line-height: 50px;
+            text-decoration: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            transition: background-color 0.3s;
+        }
+    
+        .add-button:hover {
+            background-color: #0056b3;
+            font-size: 17px;
+            color: white;
+            text-decoration: none;
+            width: 102px;
+        }
+    </style>
+{%endblock%}
