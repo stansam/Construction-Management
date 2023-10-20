@@ -31,7 +31,7 @@
                 <!-- Material rows go here -->
                 {% for material in materials %}
                     <tr data-material-id="{{ material.id }}">
-                        <td> {{material.id}} </td>
+                        <td> {{forloop.counter}} </td>
                         <td>{{ material.name }}</td>
                         <td>{{ material.quantity }}</td>
                         <td>{{material.unit_price}}</td>

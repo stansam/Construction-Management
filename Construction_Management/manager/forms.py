@@ -29,13 +29,21 @@ class MaterialUpdateForm(forms.Form):
 class ProjectForm(forms.ModelForm):
     class Meta:
         model = Project
-        fields = ["title", "location", "start_date", "end_date", "status"]
+        fields = ["title", "location", "start_date", "end_date"]
         widgets = {
             'start_date': forms.DateInput(attrs={'type': 'date'}),
             'end_date': forms.DateInput(attrs={'type': 'date'}),
         }
         
 class MaterialAssignmentForm(forms.Form):
-    material_name = forms.CharField(label='Material Name', max_length=100)
-    quantity_needed = forms.IntegerField(label='Quantity Needed')
+    name = forms.ModelChoiceField(
+        queryset=Material.objects.all(),
+        empty_label=None,  # If you don't want an empty label
+        to_field_name='name',  # Set this to the field name you want to display in the dropdown
+        label='Material Name'
+    )
+    quantity_needed = forms.DecimalField(min_value=0, max_value=9999999, decimal_places=2)
+    
 
+    
+    

@@ -2,49 +2,50 @@
 
 {%block body%}
     <section class="project-list">
-        {%for project in projects%}
-        <div class="project">
-            <h2>Project {{project.id}}</h2>
-            <p>Title: {{project.title}}</p>
-            <p>Location: {{project.location}}</p>
-            <p>Status: {{project.status}}</p>
-            <a href="{%url 'project_detail' project.id%}">Learn More</a>
+        <div class="container mt-4">
+            <div class="row">
+                {% for project in projects %}
+                    <div class="col-md-3 col-sm-6 mb-4">
+                        <div class="card border-dark rounded-top" style="border-radius: 20px; position: relative; top: -20px;">
+                            <div class="card-header bg-dark text-white ">Project {{ forloop.counter }}</div>
+                            <div class="card-body">
+                                
+                                <h5 class="card-title"><strong>Title:</strong> {{ project.title }}</h5>
+                                <p class="card-text"><strong>Location:</strong> {{ project.location }}</p>
+                                <p class="card-text"><strong>Status:</strong> {{ project.get_status }}</p>
+                                <a href="{% url 'project_detail' project.id %}">Learn More</a>
+
+                                {% if project.status != 'Ongoing' %}
+                                    <form method="post" action="{% url 'remove_project' project.id %}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-danger mt-2">
+                                            Remove Project
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                    </div>
+                {% empty %}
+                    <p>No Projects Available.</p>
+                {% endfor %}
+                <div class="col-md-3 col-sm-6 mb-4" style="padding: 15px;">
+                    <a href="{% url 'add_project' %}" class="btn btn-white btn-block text-center add-button" style="border-radius: 20px; font-size: 35px; border: thin dashed black;">+&nbsp;<br> Add Project<br>&nbsp;</a>
+                </div>
+            </div>
         </div>
-        {%empty%}
-            <p>No Projects Available.</p>
-        {%endfor%}
-
-        <a href="{% url 'add_project' %}" class="add-button">Add Projects</a>
-
     </section>
 
-    <a href="{% url 'add_project' %}" class="add-button">Add Projects</a>
-    <style>
-        /* Add Projects button style */
-        .add-button {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background-color: #007BFF;
-            color: #fff;
-            border: none;
-            border-radius: 5px;
-            width: 100px;
-            height: 50px;
-            text-align: center;
-            font-size: 15px;
-            line-height: 50px;
-            text-decoration: none;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-            transition: background-color 0.3s;
-        }
     
+    <style>
+        
+        .add-button {
+            transition: background-color 0.3s, font-weight 0.3s;
+        }
         .add-button:hover {
-            background-color: #0056b3;
-            font-size: 17px;
-            color: white;
-            text-decoration: none;
-            width: 102px;
+            background-color: #555;
+            font-weight: bold;
         }
     </style>
 {%endblock%}

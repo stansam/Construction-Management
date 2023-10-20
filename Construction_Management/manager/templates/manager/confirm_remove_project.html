@@ -1,0 +1,22 @@
+{% extends 'manager/layout.html' %}
+
+{% block body %}
+    <div class="remove-project-confirmation">
+        <h1>Confirm Removal</h1>
+        <h2>Project: {{ project.title }}</h2>
+
+        <h3>Assigned Materials to be Added Back:</h3>
+        <ul>
+            {% for assignment in assigned_materials %}
+                <li>{{ assignment.name.name }} - Quantity: {{ assignment.quantity_assigned }}</li>
+            {% endfor %}
+        </ul>
+
+        <form method="post" action="{% url 'confirm_remove_project' project.id %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">Confirm Removal</button>
+            <a href="{%url 'projects'%}" class="btn btn-primary">Back</a>
+        </form>
+        
+    </div>
+{% endblock %}

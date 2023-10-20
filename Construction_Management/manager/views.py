@@ -1,9 +1,12 @@
-from django.shortcuts import render, redirect
-from .models import Material, Project
-
+from django.shortcuts import render, redirect, get_object_or_404
+from .models import Material, Project, MaterialAssignment
+from django.db.models import Sum, Q
 from .forms import MaterialForm, MaterialUpdateForm, ProjectForm, MaterialAssignmentForm
 from django.http import JsonResponse
 from django.contrib import messages 
+from datetime import date
+from django.dispatch import Signal
+
 
 # Create your views here.
 
@@ -11,9 +14,27 @@ from django.contrib import messages
 def index(request):
     material = Material.objects.all()
     project = Project.objects.all()
+
+    today = date.today()
+    ongoing_projects = Project.objects.filter(start_date__lte=today, end_date__gte=today)
+    total_budget = ongoing_projects.annotate(
+        total_cost=Sum('materialassignment__cost')
+    ).aggregate(total_budget=Sum('total_cost'))['total_budget'] or 0
+
+    projects_lacking_materials = []
+    for project in project:
+        lacking_materials = project.get_lacking_materials()
+        if lacking_materials:
+            projects_lacking_materials.append({
+                'project': project,
+                'lacking_materials': lacking_materials,
+            })
     return render(request, "manager/dashboard.html", {
         "materials" : material,
-        "projects" : project
+        "projects" : project,
+        "ongoing_projects": ongoing_projects,
+        "total_budget":total_budget,
+        "projects_lacking_materials": projects_lacking_materials,
     })
 def materials_available(request):
     return render(request, "manager/materials.html", {
@@ -86,45 +107,140 @@ def add_project(request):
         form = ProjectForm()
 
     return render(request, 'manager/add_project.html', {'form': form})
+def update_project(request, project_id):
+    project = Project.objects.get(pk=project_id)
+    
+    if request.method == 'POST':
+        form = ProjectForm(request.POST, instance=project)
+        if form.is_valid():
+            project = form.save()
+            return redirect('project_detail', project_id=project.id)
+    else:
+        form = ProjectForm(instance=project)
+    
+    return render(request, 'manager/update_project.html', {'form': form, 'project': project})
 
 def project_detail(request, project_id):
     project = Project.objects.get(pk=project_id)
     materials_assigned = project.materials.all()
+    total_budget = project.calculate_total_budget()
     return render(request, "manager/project_detail.html", {
         'project': project,
         'materials_assigned': materials_assigned,
+        'total_budget': total_budget
 
     })
 
+
+
 def assign_materials(request, project_id):
+    
+    project = Project.objects.get(pk=project_id)
+    materials = Material.objects.exclude(materialassignment__project=project)
+
     if request.method == 'POST':
         form = MaterialAssignmentForm(request.POST)
         if form.is_valid():
-            material_name = form.cleaned_data['material_name']
+            material_name = form.cleaned_data['name']
             quantity_needed = form.cleaned_data['quantity_needed']
-            
+
             try:
                 material = Material.objects.get(name=material_name)
+
                 if material.quantity >= quantity_needed:
-                    material.quantity -= quantity_needed
-                    material.save()
-                    project = Project.objects.get(pk=project_id)
-                    project.materials.add(material, through_defaults={'quantity_assigned': quantity_needed})
-                    return redirect('project_detail', project_id=project_id)
+                    # Assign the same quantity as needed when enough material is available
+                    quantity_assigned = quantity_needed
                 else:
-                    messages.error(request, "Not enough material available.")
-                    project = Project.objects.get(pk=project_id)
-                    project.status = "Pending"
-                    project.save()
-                    return redirect('assign_materials', project_id=project_id)
-                    # Handle the case where there isn't enough material
-                    # You can set an error message and re-display the form
+                    # If quantity_needed exceeds available quantity, set quantity_assigned to available quantity
+                    quantity_assigned = material.quantity
+
+                # Subtract the assigned quantity from material
+                material.quantity -= quantity_assigned
+                material.save()
+
+                cost = material.unit_price * quantity_assigned
+
+                
+
+                # Create a material assignment for the project
+                assignment = MaterialAssignment.objects.create(
+                    name=material,
+                    project=project,
+                    quantity_needed=quantity_needed,
+                    quantity_assigned=quantity_assigned,
+                    cost=cost
+                )
+
+                
+
+                # Set the status of the material based on the available quantity
+                if assignment.quantity_needed > assignment.quantity_assigned:
+                    assignment.status = 'Not Enough'
+                assignment.save()
+
+                messages.success(request, "Material assigned successfully.")
+                return redirect('assign_material', project_id=project_id)
+
             except Material.DoesNotExist:
                 messages.error(request, "Material not found.")
-                # Handle the case where the material doesn't exist
-                # You can set an error message and re-display the form
+                return redirect('assign_material', project_id=project_id)
+
     else:
         form = MaterialAssignmentForm()
-    
-    return render(request, 'manager/assign_materials.html', {'form': form})
 
+    return render(request, 'manager/assign_material.html', {
+        'form': form,
+        'project': project,
+        'materials': materials,
+    })
+
+def remove_assigned_material(request, project_id, material_assignment_id):
+    project = get_object_or_404(Project, pk=project_id)
+    material_assignment = get_object_or_404(MaterialAssignment, pk=material_assignment_id)
+
+    # Increase the material quantity by the assigned quantity
+    material = material_assignment.name
+    material.quantity += material_assignment.quantity_assigned
+    material.save()
+
+    # Delete the material assignment
+    material_assignment.delete()
+
+    return redirect('project_detail', project_id=project_id)
+
+
+def remove_project(request, project_id):
+    project = get_object_or_404(Project, pk=project_id)
+
+    if request.method == 'POST':
+        # Calculate assigned materials
+        assigned_materials = MaterialAssignment.objects.filter(project=project)
+        
+        # Render confirmation page with assigned materials
+        return render(request, 'manager/confirm_remove_project.html', {
+            'project': project,
+            'assigned_materials': assigned_materials,
+        })
+
+    return redirect('project_detail', project_id=project_id)
+
+def confirm_project_removal(request, project_id):
+    project = get_object_or_404(Project, pk=project_id)
+
+    if request.method == 'POST':
+        # Get assigned materials
+        assigned_materials = MaterialAssignment.objects.filter(project=project)
+
+        # Add assigned materials back to the overall quantity
+        for assignment in assigned_materials:
+            material = assignment.name
+            material.quantity += assignment.quantity_assigned
+            material.save()
+
+        # Delete the project and its assignments
+        project.delete()
+        assigned_materials.delete()
+
+        return redirect('project_detail')  # Redirect to the projects list page
+
+    return redirect('project_detail', project_id=project_id)

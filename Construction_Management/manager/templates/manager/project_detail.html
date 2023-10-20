@@ -3,12 +3,16 @@
 {% block body %}
     <div class="project-detail">
         <h1>Project Details</h1>
+        <a href="{%url 'update_project' project.id%}" id="add-material-button" class="btn btn-primary float-right mt-3">
+            <i class="fas fa-plus"></i> Update Project
+        </a>
 
         <h2>{{ project.name }}</h2>
         <p><strong>Location:</strong> {{ project.location }}</p>
-        <p><strong>Status:</strong> {{ project.status }}</p>
+        <p><strong>Status:</strong> {{ project.get_status }}</p>
         <p><strong>Start Date:</strong> {{ project.start_date }}</p>
         <p><strong>End Date:</strong> {{ project.end_date }}</p>
+        <p><strong>Total Budget:</strong> Kshs. {{ total_budget }}</p>
 
         <!-- You can add more project details here -->
         <h2>Materials Needed To Complete Project.</h2>
@@ -22,23 +26,32 @@
                 </tr>
             </thead>
             <tbody>
-                {% for material_assignment in project.materials_used.all %}
+                {% for assignment in project.materialassignment_set.all %}
                     <tr>
-                        <td>{{ material_assignment.name.name }}</td>
-                        <td>{{ material_assignment.quantity_needed }}</td>
-                        <td>{{ material_assignment.quantity_assigned }}</td>
+                        <td>{{ assignment.name.name }}</td>
+                        <td>{{ assignment.quantity_needed }}</td>
                         <td>
-                            {% if material_assignment.quantity_assigned >= material_assignment.quantity_needed %}
+                            {% if assignment.quantity_assigned < assignment.quantity_needed %}
+                                {{ assignment.quantity_assigned }} (Not Enough)
+                            {% else %}
+                                {{ assignment.quantity_assigned }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if assignment.quantity_assigned >= assignment.quantity_needed %}
                                 Enough
                             {% else %}
                                 Not Enough
                             {% endif %}
                         </td>
+                        <td>
+                            <a href="{% url 'remove_assigned_material' project.id assignment.id %}" class="btn btn-danger btn-sm">Remove Material</a>
+                        </td>
                     </tr>
-                {%empty%}
+                {% empty %}
                     <tr>
-                        <td colspan="4">No Materalias Assigned yet</td>
-                    </tr>    
+                        <td colspan="4">No materials assigned to this project.</td>
+                    </tr>
                 {% endfor %}
                 {% if project.materials_used.count == 0 %}
                     <tr>
@@ -48,7 +61,7 @@
             </tbody>
         </table>
     
-        <a href="{% url 'assign_materials' project.id %}" class="btn btn-primary">Assign Materials</a>
+        <a href="{% url 'assign_material' project.id %}" class="btn btn-primary">Assign Materials</a>
        
 
         <a href="{% url 'projects' %}" class="btn btn-primary" style="background-color: green; border-color: green;">
