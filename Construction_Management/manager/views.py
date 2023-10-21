@@ -1,19 +1,24 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from .models import Material, Project, MaterialAssignment
-from django.db.models import Sum, Q
+from django.db.models import Sum, Count, F, Case, When
 from .forms import MaterialForm, MaterialUpdateForm, ProjectForm, MaterialAssignmentForm
 from django.http import JsonResponse
 from django.contrib import messages 
 from datetime import date
-from django.dispatch import Signal
+from django.db import transaction, models
 
 
-# Create your views here.
+# Tommorrow.
+# add variables that calculate both individual ongoing and upcoming projects budget
+# add a variable that calculates all upcoming projects budget
+# show closest upcoming project in dashboard
+# Continue enhancing the dashboard style
 
 
 def index(request):
     material = Material.objects.all()
     project = Project.objects.all()
+    less_materials = Material.objects.filter(quantity__lt=5)
 
     today = date.today()
     ongoing_projects = Project.objects.filter(start_date__lte=today, end_date__gte=today)
@@ -22,8 +27,8 @@ def index(request):
     ).aggregate(total_budget=Sum('total_cost'))['total_budget'] or 0
 
     projects_lacking_materials = []
-    for project in project:
-        lacking_materials = project.get_lacking_materials()
+    for project_instance in project:
+        lacking_materials = project_instance.get_lacking_materials()
         if lacking_materials:
             projects_lacking_materials.append({
                 'project': project,
@@ -35,6 +40,7 @@ def index(request):
         "ongoing_projects": ongoing_projects,
         "total_budget":total_budget,
         "projects_lacking_materials": projects_lacking_materials,
+        "less_materials": less_materials
     })
 def materials_available(request):
     return render(request, "manager/materials.html", {
@@ -75,6 +81,7 @@ def update_material_quantity(request):
                 material = Material.objects.get(name=material_name)
                 material.quantity += new_quantity
                 material.save()
+                update_projects_with_lacking_materials()
                 success_message = "Quantity updated successfully."
             except Material.DoesNotExist:
                 error_message = "Material not found. Please check the name."
@@ -136,7 +143,7 @@ def project_detail(request, project_id):
 def assign_materials(request, project_id):
     
     project = Project.objects.get(pk=project_id)
-    materials = Material.objects.exclude(materialassignment__project=project)
+    materials =  Material.objects.all()
 
     if request.method == 'POST':
         form = MaterialAssignmentForm(request.POST)
@@ -145,7 +152,7 @@ def assign_materials(request, project_id):
             quantity_needed = form.cleaned_data['quantity_needed']
 
             try:
-                material = Material.objects.get(name=material_name)
+                material = Material.objects.get(name=material_name)                
 
                 if material.quantity >= quantity_needed:
                     # Assign the same quantity as needed when enough material is available
@@ -174,8 +181,7 @@ def assign_materials(request, project_id):
                 
 
                 # Set the status of the material based on the available quantity
-                if assignment.quantity_needed > assignment.quantity_assigned:
-                    assignment.status = 'Not Enough'
+                
                 assignment.save()
 
                 messages.success(request, "Material assigned successfully.")
@@ -194,13 +200,42 @@ def assign_materials(request, project_id):
         'materials': materials,
     })
 
+
+
 def remove_assigned_material(request, project_id, material_assignment_id):
-    project = get_object_or_404(Project, pk=project_id)
+    
     material_assignment = get_object_or_404(MaterialAssignment, pk=material_assignment_id)
+
+    # Calculate the amount being removed
+    removed_quantity = material_assignment.quantity_assigned
+
+    # Calculate the project with the lowest ID
+    lowest_id_project = Project.objects.order_by('id').first()
+
+    # Query for other projects with the same material and higher IDs
+    other_projects = Project.objects.filter(
+        materialassignment__name=material_assignment.name,
+        id__gt=lowest_id_project.id
+    )
+
+    # Loop through other projects and update assigned quantities
+    for other_project in other_projects:
+        other_assignments = MaterialAssignment.objects.filter(
+            project=other_project,
+            name=material_assignment.name
+        )
+
+        for assignment in other_assignments:
+            if removed_quantity > 0:
+                # Calculate how much can be assigned to this project without exceeding quantity_needed
+                remaining_quantity = min(removed_quantity, assignment.quantity_needed - assignment.quantity_assigned)
+                assignment.quantity_assigned += remaining_quantity
+                assignment.save()
+                removed_quantity -= remaining_quantity
 
     # Increase the material quantity by the assigned quantity
     material = material_assignment.name
-    material.quantity += material_assignment.quantity_assigned
+    material.quantity += removed_quantity
     material.save()
 
     # Delete the material assignment
@@ -244,3 +279,28 @@ def confirm_project_removal(request, project_id):
         return redirect('project_detail')  # Redirect to the projects list page
 
     return redirect('project_detail', project_id=project_id)
+
+
+def update_projects_with_lacking_materials():
+    lacking_projects = Project.objects.filter(materialassignment__quantity_needed__gt=F('materialassignment__quantity_assigned'))
+    sorted_projects = lacking_projects.order_by('id')
+
+    for project in sorted_projects:
+        lacking_materials = project.materialassignment_set.filter(quantity_assigned__lt=F('quantity_needed'))
+
+
+        for assignment in lacking_materials:
+            quantity_needed = assignment.quantity_needed
+            quantity_assigned = assignment.quantity_assigned
+            lacking_quantity = quantity_needed - quantity_assigned
+            material = assignment.name 
+
+            if material.quantity >= lacking_quantity:
+                assignment.quantity_assigned = F('quantity_needed')
+                material.quantity -= lacking_quantity
+            else:
+                assignment.quantity_assigned = F('quantity_assigned') + F('material__quantity')
+
+            assignment.save()
+            project.save()
+            material.save()

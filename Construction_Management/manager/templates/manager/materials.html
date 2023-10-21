@@ -16,7 +16,7 @@
 
         <!-- Material List -->
         <h2>Materials</h2>
-        <table class="table table-bordered">
+        <table class="table">
             <thead>
                 <tr>
                     <th>ID</th>
@@ -88,6 +88,11 @@
     <script>
 
         document.addEventListener("DOMContentLoaded", function () {
+            var materialForm = {
+                name: "{{ form.name.value }}",
+                quantity: "{{ form.quantity.value }}"
+            };
+
             const materials = document.querySelectorAll(".total-price");
             let totalPrice = 0.0;
 
@@ -197,7 +202,32 @@
 
             // Call the function when the page loads
             updateNoMaterialsMessage();
+            $(document).ready(function() {
+            // Add a click event listener to the button
+            $("#add-material-button").click(function() {
+                // Make an AJAX request to trigger the material quantity update
+                $.ajax({
+                    url: '/manager/update_material_quantity/',  // Replace with your actual URL
+                    type: 'POST',
+                    data: {
+                        // Include any data needed to update the material quantity
+                        name: materialForm.name,
+                        quantity: materialForm.quantity
+                    },
+                    success: function(response) {
+                        // Handle the success response
+                        console.log(response.message);
+                    },
+                    error: function(xhr, errmsg, err) {
+                        // Handle the error
+                        console.log(err);
+                    }
+                });
+            });
         });
+        });
+
+        
 
     </script>
 {%endblock%}

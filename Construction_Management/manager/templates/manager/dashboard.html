@@ -4,62 +4,112 @@
     
     
     <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-        <h1 class="h2">Dashboard</h1>
+        <h1 class="h2" style="color: brown;">Dashboard</h1>
     </div>
 
-    
-    <h5>Material Inventory</h5>
-    <table class="table table-bordered">
-        <thead>
-            <tr>
-                <th>Material Name</th>
-                <th>Quantity (units)</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for material in materials %}
-                <tr>
-                    <td>{{ material.name }}</td>
-                    <td>{{ material.quantity }}</td>
-                </tr>
-            {% empty %}
-                <tr>
-                    <td colspan="2">No materials available</td>
-                </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    
-    <div class="border-bottom">
-        <h5 >On Going Projects</h5>
-    </div>    
-    {% for project in ongoing_projects %}
-        <div class="project-card">
-            <h6><strong>Project:</strong> {{forloop.counter}}</h6>
-            <p><strong>Title:</strong>{{ project.title }}</p>
-            <p><strong>Start Date:</strong> {{ project.start_date }}</p>
-            <p><strong>End Date:</strong> {{ project.end_date }}</p>
-            <p><strong>Budget:</strong> Kshs. {{ total_budget }}</p>
-            <!-- Add other project details as needed -->
+    <div class="row">
+        <h5 class="text-primary">Material Inventory</h5>
+        <div class="col-md-5 col-sm-4">
+            <div class="card card-body border">
+            
+                          
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Material Name</th>
+                            <th>Quantity (units)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for material in materials %}
+                            <tr>
+                                <td>{{ material.name }}</td>
+                                <td data-unit-price="{{material.unit_price}}">{{ material.quantity }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="2">No materials available</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        
         </div>
-    {% empty %}
-        <p>No ongoing projects at the moment.</p>
-    {% endfor %}
-    <div class="border-bottom">
-        <h5>Projects Lacking Materials</h5>
-    </div>
-    <ul>
-        {% for project_data in projects_lacking_materials %}
-            <li>{{ project_data.project.title }} lacks:</li>
-            <ul>
-                {% for lacking_material in project_data.lacking_materials %}
-                    <li>{{ lacking_material.quantity_needed|floatformat:0 }} units of {{ lacking_material.name }}</li>
-                {% endfor %}
-            </ul>
-        {%empty%}
-            <li>All projects have enough materials :)</li>
+        <div class="col-md-7 col-sm-6">
+            <h5 class="text-primary">Materials need to know:</h5>
+            <div class="card card-body border">            
+                <div id="total-cost-container"><strong>Total Cost for all materials: Kshs. </strong><span id="total-cost"></span></div>
+                <div>
+                    {%if less_materials%}
+                        The following materials needs to be added:
+                        {%for material in less_materials%}                           
+                            <ul>
+                            {%for material in materials%}
+                            
+                                <li>material.name</li>
+                            {%endfor%}
+                                            
+                        {%endfor%}
+                        <a href="{%url 'add_material'%}" id="add-material-button" class="btn btn-primary  mt-3">
+                            <i class="fas fa-plus"></i> Add Material
+                        </a>
+                        {%endif%}
+                </div>            
+            </div>
+        </div>
+
+        <div class="border-top">
+            <h5 style="color: brown;">On Going Projects</h5>
+        </div>    
+        {% for project in ongoing_projects %}
+            <div class="project-card">
+                <h6><strong>Project:</strong> {{forloop.counter}}</h6>
+                <p><strong>Title:</strong>{{ project.title }}</p>
+                <p><strong>Start Date:</strong> {{ project.start_date }}</p>
+                <p><strong>End Date:</strong> {{ project.end_date }}</p>
+                <p><strong>Budget:</strong> Kshs. {{ total_budget }}</p>
+                <!-- Add other project details as needed -->
+            </div>
+        {% empty %}
+            <p>No ongoing projects at the moment.</p>
         {% endfor %}
-</ul>
-    
+        <div class="border-bottom">
+            <h5>Projects Lacking Materials</h5>
+        </div>
+        <ul>
+            {% for project_data in projects_lacking_materials %}
+                <li>{{ project_data.project.title }} lacks:</li>
+                <ul>
+                    {% for lacking_material in project_data.lacking_materials %}
+                        <li>{{ lacking_material.quantity_needed|floatformat:0 }} units of {{ lacking_material.name }}</li>
+                    {% endfor %}
+                </ul>
+            {%empty%}
+                <li>All projects have enough materials :)</li>
+            {% endfor %}
+        </ul>
+    </div>
+    <script>
+        function calculateTotalCost() {
+            let totalCost = 0;
+            // Iterate through each row in the materials table
+            const materialRows = document.querySelectorAll(".table tbody tr");
+            materialRows.forEach((row) => {
+                const quantityCell = row.cells[1]; // Adjust the index if needed
+                const unitPrice = parseFloat(quantityCell.getAttribute("data-unit-price"));
+                const quantity = parseFloat(quantityCell.textContent);
+                const cost = unitPrice * quantity;
+                totalCost += cost;
+            });
+
+            // Update the total cost element
+            const totalCostElement = document.getElementById("total-cost");
+            totalCostElement.textContent = totalCost.toFixed(2); // Format as needed
+        }
+
+        // Call the function when the page loads
+        window.addEventListener("load", calculateTotalCost);
+    </script>
 {%endblock%}
         
